@@ -1,0 +1,15 @@
+---
+description: lattae-app stack and when to load project agent skills
+alwaysApply: true
+---
+
+# lattae-app
+
+Vue 3 + TypeScript + Vite frontend. Package manager is npm. Follow `AGENTS.md`.
+
+Before a non-trivial change, read the matching skill in `.agents/skills/` and follow its process, including the verification step.
+
+- Write UI as Vue 3 SFCs with `<script setup lang="ts">`.
+- This repo has no router, Pinia, or test runner yet. If tests are added, use Vitest.
+- Prove a change with `npm run build` before calling it done.
+- `references/testing-patterns.md` examples are JavaScript and React. Apply the principles to Vue SFCs.
