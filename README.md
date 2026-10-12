@@ -1,0 +1,2 @@
+# lattae-app
+lattae frontend
