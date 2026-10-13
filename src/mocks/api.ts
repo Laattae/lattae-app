@@ -177,6 +177,13 @@ function copyReel(reel: Reel): Reel {
   return { ...reel, cards: reel.cards.map((card) => ({ ...card })) }
 }
 
+export interface ExplorePage {
+  items: Array<ExploreEntry & { kind: 'post' | 'reel' }>
+  page: number
+  pageSize: number
+  total: number
+}
+
 export async function listExplore(query: string): Promise<ExploreEntry[]> {
   const portfolio = await getPortfolio()
   const primary = portfolio ? await getMoves(portfolio) : []
@@ -213,6 +220,22 @@ export async function listExplore(query: string): Promise<ExploreEntry[]> {
   return rows.filter((row) =>
     [row.name, row.code, ...row.aliases].some((value) => value.toLowerCase().replace(/\s/g, '').includes(needle)),
   )
+}
+
+export async function listExplorePage(query: string, page: number, pageSize = 12): Promise<ExplorePage> {
+  const tiles = (await listExplore(query)).flatMap((row) => [
+    { ...row, kind: 'post' as const },
+    { ...row, kind: 'reel' as const },
+  ])
+  const size = Math.max(1, Math.floor(pageSize))
+  const current = Math.max(1, Math.floor(page))
+  const start = (current - 1) * size
+  return {
+    items: tiles.slice(start, start + size),
+    page: current,
+    pageSize: size,
+    total: tiles.length,
+  }
 }
 
 export async function getReels(reelId?: string): Promise<Reel[]> {

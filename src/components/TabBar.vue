@@ -25,10 +25,10 @@ const current = computed(() => tabs.findIndex((tab) => tab.name === route.name))
       v-for="tab in tabs"
       :key="tab.to"
       :to="tab.to"
+      :aria-label="tab.label"
       :aria-current="route.name === tab.name ? 'page' : undefined"
     >
       <Icon :name="tab.icon" />
-      <span :class="{ 'sr-only': compact }">{{ tab.label }}</span>
     </RouterLink>
   </nav>
 </template>
@@ -42,7 +42,7 @@ const current = computed(() => tabs.findIndex((tab) => tab.name === route.name))
   left: 16px;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  height: 62px;
+  height: 52px;
   padding: 6px;
   border: 1px solid rgb(247 235 218 / 28%);
   border-radius: 999px;

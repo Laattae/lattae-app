@@ -29,7 +29,6 @@ router.beforeEach(async (to) => {
   return true
 })
 
-router.afterEach((to) => {
-  const title = typeof to.meta.title === 'string' ? to.meta.title : '라떼'
-  document.title = `${title} · 라떼`
+router.afterEach(() => {
+  document.title = 'Lattae'
 })
