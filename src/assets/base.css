@@ -10,7 +10,7 @@
   --down: #1e4e8c;
   --flat: #7a5a42;
   --header-h: 56px;
-  --tab-h: 84px;
+  --tab-h: 72px;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-press: cubic-bezier(0.2, 0, 0, 1);
   --font: 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
@@ -30,6 +30,9 @@ body {
 
 html {
   font-family: var(--font);
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -42,12 +45,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+a,
+button,
+input,
+textarea,
+select {
+  touch-action: manipulation;
+}
+
 button,
 input,
 textarea,
 select {
   font: inherit;
   color: inherit;
+}
+
+input,
+textarea,
+select {
+  font-size: 16px;
 }
 
 button {
