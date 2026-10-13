@@ -22,11 +22,34 @@ const loop = ref<FeedItem[]>([])
 const pageOf = ref<Record<string, number>>({})
 const activeKey = ref('')
 const activeId = ref('')
+const progress = ref(0)
+const REEL_MS = 10000
 let startedAt = 0
 let generation = 0
 let appending = false
+let clock = 0
 let observer: IntersectionObserver | undefined
 let endObserver: IntersectionObserver | undefined
+
+function stopClock() {
+  cancelAnimationFrame(clock)
+  clock = 0
+}
+
+function startClock(key: string) {
+  stopClock()
+  progress.value = 0
+  const item = feed.value.find((entry) => entry.key === key)
+  if (!item || item.kind !== 'reel') return
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  const origin = performance.now()
+  const tick = (now: number) => {
+    if (activeKey.value !== key) return
+    progress.value = ((now - origin) % REEL_MS) / REEL_MS
+    clock = requestAnimationFrame(tick)
+  }
+  clock = requestAnimationFrame(tick)
+}
 
 function pageOfItem(key: string) {
   return pageOf.value[key] ?? 0
@@ -67,6 +90,7 @@ function enterItem(key: string) {
   activeKey.value = key
   const card = item.kind === 'reel' ? lead(item.reel) : shown(item)
   if (card) enter(card.id)
+  startClock(key)
 }
 
 function bind(initial = false) {
@@ -121,8 +145,10 @@ async function load() {
   activeId.value = ''
   activeKey.value = ''
   pageOf.value = {}
+  progress.value = 0
   generation = 0
   appending = false
+  stopClock()
   const reelId = typeof route.params.reelId === 'string' ? route.params.reelId : undefined
   const kind = route.query.kind === 'reel' ? 'reel' : 'post'
   const rows = await listExplore('')
@@ -220,6 +246,7 @@ watch(
 
 onBeforeUnmount(() => {
   leave(activeId.value)
+  stopClock()
   observer?.disconnect()
   endObserver?.disconnect()
 })
@@ -348,6 +375,9 @@ onBeforeUnmount(() => {
               <Icon name="bookmark" :filled="lead(item.reel)?.saved === true" />
             </button>
           </div>
+          <div class="scrub" aria-hidden="true">
+            <span :style="{ transform: `scaleX(${item.key === activeKey ? progress : 0})` }"></span>
+          </div>
         </template>
       </article>
     </div>
@@ -375,6 +405,23 @@ onBeforeUnmount(() => {
   scroll-snap-align: start;
   scroll-snap-stop: always;
   overflow: hidden;
+}
+.scrub {
+  position: absolute;
+  z-index: 4;
+  right: 0;
+  bottom: env(safe-area-inset-bottom);
+  left: 0;
+  height: 2px;
+  background: rgb(247 235 218 / 32%);
+}
+.scrub span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #f7ebda;
+  transform: scaleX(0);
+  transform-origin: left center;
 }
 .item[data-kind='post'] {
   display: flex;
