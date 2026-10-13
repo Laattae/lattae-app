@@ -14,7 +14,6 @@ const rank: Record<string, number> = {
   home: 1,
   search: 1,
   profile: 1,
-  alerts: 2,
   move: 3,
   reels: 4,
 }

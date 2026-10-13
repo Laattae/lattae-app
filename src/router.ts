@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { getPortfolio } from '@/api/lattae'
-import AlertsView from '@/views/AlertsView.vue'
 import HomeView from '@/views/HomeView.vue'
 import MoveDetailView from '@/views/MoveDetailView.vue'
 import OnboardingView from '@/views/OnboardingView.vue'
@@ -18,7 +17,7 @@ export const router = createRouter({
     { path: '/me', name: 'profile', component: ProfileView, meta: { title: '내 정보', frame: true } },
     { path: '/moves/:id', name: 'move', component: MoveDetailView, meta: { title: '변동' } },
     { path: '/reels/:reelId?', name: 'reels', component: ReelsView, meta: { title: '오늘의 변동', frame: true } },
-    { path: '/alerts', name: 'alerts', component: AlertsView, meta: { title: '알림', frame: true } },
+    { path: '/alerts', redirect: '/home' },
   ],
 })
 
