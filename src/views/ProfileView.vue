@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { getPortfolio, getSession, type AuthProvider } from '@/api/lattae'
+import BrewStatus from '@/components/BrewStatus.vue'
 
 const ready = ref(false)
 const failed = ref(false)
@@ -46,7 +47,7 @@ onMounted(load)
     <header class="bar">
       <h1>내 정보</h1>
     </header>
-    <p v-if="!ready" class="note pad" role="status">불러오는 중</p>
+    <BrewStatus v-if="!ready" kind="latte" />
     <p v-else-if="failed" class="note pad" role="alert">
       정보를 불러오지 못했습니다.
       <button type="button" class="text-btn" @click="load">다시 시도</button>

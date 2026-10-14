@@ -8,6 +8,7 @@ import {
   savePortfolio,
   searchStocks,
 } from '@/api/lattae'
+import BrewMark from '@/components/BrewMark.vue'
 import Disclaimer from '@/components/Disclaimer.vue'
 import type { Portfolio, Stock } from '@/types'
 
@@ -125,7 +126,10 @@ onMounted(async () => {
     </header>
 
     <form class="stack cascade" @submit.prevent="save">
-      <p class="lead">보유 종목을 알려 주세요. 계좌는 연결하지 않습니다.</p>
+      <div class="intro">
+        <BrewMark kind="roast" :size="88" />
+        <p class="lead">보유 종목을 알려 주세요. 계좌는 연결하지 않습니다.</p>
+      </div>
 
       <label class="field">
         <span>종목</span>
@@ -197,6 +201,14 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
 .lead {
   margin: 0;
 }

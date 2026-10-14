@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { getAlerts, getMoveDetail, getMoves, getPortfolio } from '@/api/lattae'
+import BrewMark from '@/components/BrewMark.vue'
+import BrewStatus from '@/components/BrewStatus.vue'
 import type { AlertItem, MoveView } from '@/types'
 
 interface Notice {
@@ -105,7 +107,7 @@ onMounted(load)
       </div>
     </header>
 
-    <p v-if="!ready" class="note pad" role="status">불러오는 중</p>
+    <BrewStatus v-if="!ready" kind="espresso" />
     <p v-else-if="failed" class="note pad" role="alert">
       홈을 불러오지 못했습니다.
       <button type="button" class="text-btn" @click="load">다시 시도</button>
@@ -143,10 +145,16 @@ onMounted(load)
 
       <section class="card" aria-labelledby="notice-title">
         <header class="card-head">
-          <h2 id="notice-title">급등 알림</h2>
+          <h2 id="notice-title" class="with-mark">
+            <BrewMark kind="espresso" :size="32" />
+            급등 알림
+          </h2>
           <p class="count">{{ notices.length }}건</p>
         </header>
-        <p v-if="!notices.length" class="note">오늘 급등으로 표시할 종목이 없습니다.</p>
+        <div v-if="!notices.length" class="empty">
+          <BrewMark kind="espresso" :size="80" />
+          <p class="note">오늘 급등으로 표시할 종목이 없습니다.</p>
+        </div>
         <article v-for="(notice, index) in notices" :key="notice.id" class="notice in" :style="{ '--i': index }">
           <div class="who">
             <h3>
@@ -214,6 +222,21 @@ onMounted(load)
 
 .card-head h2 {
   font-size: 16px;
+}
+
+.with-mark {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0 16px;
+  text-align: center;
 }
 
 .fresh,

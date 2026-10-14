@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getPortfolio, getSession, savePortfolio, signOut, type AuthProvider } from '@/api/lattae'
+import BrewStatus from '@/components/BrewStatus.vue'
 import Icon from '@/components/Icon.vue'
 
 const router = useRouter()
@@ -94,7 +95,7 @@ async function logout() {
       </button>
       <h1>계정 설정</h1>
     </header>
-    <p v-if="!ready" class="note pad" role="status">불러오는 중</p>
+    <BrewStatus v-if="!ready" kind="latte" />
     <p v-else-if="failed" class="note pad" role="alert">
       정보를 불러오지 못했습니다.
       <button type="button" class="text-btn" @click="load">다시 시도</button>

@@ -2,7 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getPortfolio, savePortfolio, searchCatalog, searchStocks } from '@/api/lattae'
+import BrewStatus from '@/components/BrewStatus.vue'
 import ChangePct from '@/components/ChangePct.vue'
+import ConnectionMap from '@/components/ConnectionMap.vue'
 import Icon from '@/components/Icon.vue'
 import type { CatalogHit, Stock } from '@/types'
 
@@ -109,7 +111,7 @@ onMounted(load)
       </button>
       <h1>종목 연결</h1>
     </header>
-    <p v-if="!ready" class="note pad" role="status">불러오는 중</p>
+    <BrewStatus v-if="!ready" kind="roast" />
     <p v-else-if="failed" class="note pad" role="alert">
       정보를 불러오지 못했습니다.
       <button type="button" class="text-btn" @click="load">다시 시도</button>
@@ -140,6 +142,14 @@ onMounted(load)
         </ul>
         <p v-else-if="query.trim()" class="note" role="status">해당하는 종목이 없습니다.</p>
       </section>
+
+      <ConnectionMap
+        v-if="holdings.length"
+        heading="h2"
+        layout="row"
+        note="이 기기에 적어 둔 종목입니다."
+        :items="holdings.map((item) => ({ key: item.code, label: item.name }))"
+      />
 
       <section>
         <h2>연결된 종목</h2>

@@ -26,10 +26,10 @@ async function enter(provider: AuthProvider) {
 <template>
   <div class="view login">
     <div class="hero">
-      <p class="lead">보유한 종목이 왜 움직였는지,<br />짧게 설명합니다.</p>
-      <h1>Lattae</h1>
-      <p class="hint">SNS 계정으로 시작</p>
-      <p class="note">계좌는 연결하지 않습니다.</p>
+      <p class="lead">Your portfolio, explained.</p>
+      <h1>
+        <img src="/lattae-icon-512.png" alt="Lattae" width="128" height="128" />
+      </h1>
       <div class="providers">
         <div v-for="provider in providers" :key="provider.id" class="provider">
           <p v-if="recent === provider.id" class="bubble">최근 로그인</p>
@@ -75,30 +75,21 @@ async function enter(provider: AuthProvider) {
 
 .lead {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 650;
-  letter-spacing: -0.045em;
-  line-height: 1.4;
+  letter-spacing: -0.03em;
+  line-height: 1.35;
 }
 
 h1 {
-  margin: 22px 0 0;
-  font-size: 64px;
-  font-weight: 750;
-  letter-spacing: -0.06em;
-  line-height: 1;
+  display: flex;
+  justify-content: center;
+  margin: 28px 0 0;
 }
 
-.hint {
-  margin: 36px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.note {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 12px;
+h1 img {
+  width: 128px;
+  height: 128px;
 }
 
 .providers {
