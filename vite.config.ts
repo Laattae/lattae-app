@@ -47,6 +47,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
+        globIgnores: [
+          '**/roast-loader-transparent.png',
+          '**/roast-loader-transparent-ondark.png',
+          '**/roast-loader-transparent-notext.png',
+          '**/roast-loader-transparent-ondark-notext.png',
+        ],
         navigateFallback: 'index.html',
       },
     }),
