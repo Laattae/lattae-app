@@ -1,98 +1,41 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { getPortfolio, savePortfolio, searchCatalog, searchStocks } from '@/api/lattae'
-import ChangePct from '@/components/ChangePct.vue'
-import type { CatalogHit, Stock } from '@/types'
+import { getPortfolio, getSession, type AuthProvider } from '@/api/lattae'
 
-interface DraftHolding {
-  code: string
-  name: string
-  weight: number
-}
-
-const query = ref('')
-const results = ref<Stock[]>([])
-const holdings = ref<DraftHolding[]>([])
-const catalog = ref<CatalogHit[]>([])
-const keywords = ref<string[]>([])
-const notificationsEnabled = ref(false)
 const ready = ref(false)
 const failed = ref(false)
-const error = ref('')
-const saved = ref(false)
+const provider = ref<AuthProvider | null>(null)
+const holdingCount = ref(0)
+const keywordCount = ref(0)
 
-const total = computed(() =>
-  holdings.value.reduce((sum, item) => sum + (Number(item.weight) || 0), 0),
+const providerLabel: Record<AuthProvider, string> = {
+  kakao: '카카오',
+  google: '구글',
+  apple: '애플',
+}
+
+const accountName = computed(() =>
+  provider.value ? `${providerLabel[provider.value]} 계정` : '로그인된 계정',
 )
 
-function changeOf(code: string) {
-  return catalog.value.find((item) => item.code === code)?.changePct ?? 0
-}
-
-function connected(code: string) {
-  return holdings.value.some((item) => item.code === code)
-}
+const holdingAside = computed(() => {
+  const stocks = `${holdingCount.value}종목`
+  const keywords = keywordCount.value ? ` · 키워드 ${keywordCount.value}개` : ''
+  return `${stocks}${keywords}`
+})
 
 async function load() {
   failed.value = false
   try {
+    provider.value = await getSession()
     const portfolio = await getPortfolio()
-    if (!portfolio) return
-    notificationsEnabled.value = portfolio.notificationsEnabled
-    keywords.value = [...portfolio.keywords]
-    catalog.value = await searchCatalog('')
-    holdings.value = portfolio.holdings.flatMap((holding) => {
-      const hit = catalog.value.find((item) => item.code === holding.code)
-      return hit ? [{ code: hit.code, name: hit.name, weight: holding.weight }] : []
-    })
+    holdingCount.value = portfolio?.holdings.length ?? 0
+    keywordCount.value = portfolio?.keywords.length ?? 0
   } catch {
     failed.value = true
   } finally {
     ready.value = true
   }
-}
-
-async function search() {
-  saved.value = false
-  results.value = await searchStocks(query.value)
-}
-
-function connect(stock: Stock) {
-  saved.value = false
-  error.value = ''
-  if (connected(stock.code)) return
-  holdings.value.push({ code: stock.code, name: stock.name, weight: 10 })
-  query.value = ''
-  results.value = []
-}
-
-function disconnect(code: string) {
-  saved.value = false
-  error.value = ''
-  holdings.value = holdings.value.filter((item) => item.code !== code)
-}
-
-async function save() {
-  error.value = ''
-  saved.value = false
-  if (!holdings.value.length) {
-    error.value = '종목을 하나 이상 연결해 주세요.'
-    return
-  }
-  if (holdings.value.some((item) => !item.weight || item.weight <= 0)) {
-    error.value = '비중은 0보다 큰 숫자로 입력해 주세요.'
-    return
-  }
-  if (total.value > 100) {
-    error.value = '비중 합이 100%를 넘습니다. 합을 100 이하로 맞춰 주세요.'
-    return
-  }
-  await savePortfolio({
-    holdings: holdings.value.map((item) => ({ code: item.code, weight: Number(item.weight) })),
-    keywords: keywords.value,
-    notificationsEnabled: notificationsEnabled.value,
-  })
-  saved.value = true
 }
 
 onMounted(load)
@@ -108,123 +51,161 @@ onMounted(load)
       정보를 불러오지 못했습니다.
       <button type="button" class="text-btn" @click="load">다시 시도</button>
     </p>
-    <form v-else class="stack cascade" @submit.prevent="save">
-      <section>
-        <h2>종목 연결</h2>
-        <p class="note">계좌는 연결하지 않습니다. 이름이나 별칭으로 종목을 찾아 연결합니다.</p>
-        <label class="field">
-          <span class="sr-only">종목</span>
-          <input
-            v-model="query"
-            type="search"
-            placeholder="이름, 별칭, 종목코드"
-            autocomplete="off"
-            @input="search"
-          />
-        </label>
-        <ul v-if="results.length" class="results">
-          <li v-for="stock in results" :key="stock.code">
-            <span>
-              {{ stock.name }}
-              <small>{{ stock.code }}</small>
-            </span>
-            <button type="button" :disabled="connected(stock.code)" @click="connect(stock)">
-              {{ connected(stock.code) ? '연결됨' : '연결' }}
-            </button>
-          </li>
-        </ul>
-        <p v-else-if="query.trim()" class="note" role="status">해당하는 종목이 없습니다.</p>
+    <div v-else class="board">
+      <section class="card who" aria-label="계정">
+        <span class="badge" :data-provider="provider ?? 'none'" aria-hidden="true">
+          <svg v-if="provider === 'kakao' || !provider" viewBox="0 0 24 24">
+            <path
+              fill="currentColor"
+              d="M12 4.2c-4.6 0-8.3 2.9-8.3 6.5 0 2.3 1.5 4.4 3.8 5.6l-.7 2.9c-.1.4.3.7.6.4l3.3-2.1c.4.1.9.1 1.3.1 4.6 0 8.3-2.9 8.3-6.5S16.6 4.2 12 4.2z"
+            />
+          </svg>
+          <span v-else-if="provider === 'google'">G</span>
+          <svg v-else viewBox="0 0 17 20">
+            <path
+              fill="currentColor"
+              d="M13.6 10.6c0-2.3 1.9-3.4 2-3.5-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.2-2.8.8-3.5.8s-1.8-.8-3-.8c-1.5.1-3 .9-3.8 2.3-1.6 2.8-.4 7 1.2 9.3.7 1.1 1.6 2.3 2.8 2.3 1.1 0 1.5-.7 2.9-.7s1.7.7 2.9.7 1.9-1.1 2.7-2.2c.8-1.2 1.2-2.4 1.2-2.5-.1-.1-2.3-.9-2.3-3.6zM11.4 4.2c.6-.7 1-1.8.9-2.8-1 .1-2.1.6-2.8 1.4-.6.7-1.1 1.8-.9 2.8 1.1.1 2.1-.5 2.8-1.4z"
+            />
+          </svg>
+        </span>
+        <div>
+          <h2>{{ accountName }}</h2>
+          <p class="note">이 기기에 로그인되어 있습니다.</p>
+        </div>
       </section>
 
-      <section>
-        <h2>연결된 종목</h2>
-        <p v-if="!holdings.length" class="note">연결된 종목이 없습니다.</p>
-        <TransitionGroup name="list" tag="ul" class="holdings">
-          <li v-for="holding in holdings" :key="holding.code">
-            <div class="who">
-              <strong>{{ holding.name }}</strong>
-              <small>{{ holding.code }}</small>
-            </div>
-            <ChangePct :value="changeOf(holding.code)" />
-            <label>
-              <span class="sr-only">{{ holding.name }} 비중</span>
-              <input v-model.number="holding.weight" class="num" type="number" min="1" max="100" inputmode="numeric" @input="saved = false" />
-              <span>%</span>
-            </label>
-            <button type="button" @click="disconnect(holding.code)">해제</button>
-          </li>
-        </TransitionGroup>
-        <p class="note num">
-          비중 합 {{ total }}%
-          <template v-if="total < 100"> · 남은 {{ 100 - total }}%</template>
-        </p>
+      <section class="card" aria-labelledby="setup-title">
+        <h2 id="setup-title" class="label">설정</h2>
+        <RouterLink class="row" to="/me/holdings">
+          <span>종목 연결</span>
+          <span class="aside">{{ holdingAside }}</span>
+          <span class="chevron" aria-hidden="true" />
+        </RouterLink>
       </section>
 
-      <section>
-        <h2>관심 키워드</h2>
-        <p v-if="!keywords.length" class="note">선택한 키워드가 없습니다.</p>
-        <ul v-else class="chips">
-          <li v-for="keyword in keywords" :key="keyword">{{ keyword }}</li>
-        </ul>
+      <section class="card" aria-labelledby="account-title">
+        <h2 id="account-title" class="label">계정</h2>
+        <RouterLink class="row" to="/me/account">
+          <span>계정 설정</span>
+          <span class="aside">{{ provider ? providerLabel[provider] : '' }}</span>
+          <span class="chevron" aria-hidden="true" />
+        </RouterLink>
       </section>
 
-      <section>
-        <h2>알림</h2>
-        <p class="note">
-          {{ notificationsEnabled ? '알림을 받습니다.' : '알림함에서 확인합니다.' }}
-          iPhone에서는 홈 화면에 추가한 뒤에만 푸시 알림을 받을 수 있습니다.
-        </p>
+      <section class="card" aria-labelledby="info-title">
+        <h2 id="info-title" class="label">안내</h2>
+        <RouterLink class="row" to="/me/privacy">
+          <span>개인정보 처리방침</span>
+          <span class="chevron" aria-hidden="true" />
+        </RouterLink>
+        <RouterLink class="row" to="/me/terms">
+          <span>이용약관</span>
+          <span class="chevron" aria-hidden="true" />
+        </RouterLink>
       </section>
-
-      <Transition name="soft">
-        <p v-if="error" class="error" role="alert">{{ error }}</p>
-      </Transition>
-      <Transition name="soft">
-        <p v-if="saved" class="note" role="status">연결을 저장했습니다.</p>
-      </Transition>
-      <button type="submit" class="primary">연결 저장</button>
-    </form>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .pad { padding: 0 16px; }
-h2 { margin: 0; font-size: 15px; }
-.results, .holdings, .chips { position: relative; margin: 0; padding: 0; list-style: none; }
-.results li, .holdings li {
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 12px 16px;
+}
+
+.card {
+  padding: 6px 0;
+  border-radius: 18px;
+  background: var(--bg-raised);
+  box-shadow: 0 8px 24px rgb(74 44 29 / 8%);
+}
+
+.who {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 14px;
+  padding: 16px;
+}
+
+.who h2,
+.label {
+  margin: 0;
+}
+
+.who h2 {
+  font-size: 17px;
+  letter-spacing: -0.03em;
+}
+
+.badge {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: #fee500;
+  color: #191919;
+  font-size: 20px;
+  font-weight: 750;
+}
+
+.badge[data-provider='google'] {
+  border: 1px solid #e4e4e4;
+  background: #fff;
+  color: #4285f4;
+}
+
+.badge[data-provider='apple'] {
+  background: #111;
+  color: #fff;
+}
+
+.badge svg {
+  width: 24px;
+  height: 24px;
+}
+
+.label {
+  padding: 10px 16px 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-height: 52px;
-  border-bottom: 1px solid var(--line);
+  padding: 0 16px;
+  text-decoration: none;
 }
-.who { min-width: 0; flex: 1; }
-strong, small, .note { display: block; }
-small { color: var(--muted); font-size: 12px; }
-.holdings label { display: flex; align-items: center; gap: 4px; }
-.holdings input {
-  width: 64px;
-  min-height: 40px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg-raised);
+
+.row + .row {
+  border-top: 1px solid var(--line);
 }
-.results button, .holdings button[type='button'] {
-  min-height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+
+.row span:first-child {
+  flex: 1;
+  font-weight: 650;
 }
-.results button:disabled { opacity: 0.55; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.chips li {
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+
+.aside {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
-.primary { width: 100%; }
-.error { margin: 0; font-weight: 700; }
+
+.chevron {
+  width: 8px;
+  height: 8px;
+  border-top: 1.7px solid var(--muted);
+  border-right: 1.7px solid var(--muted);
+  transform: rotate(45deg);
+}
 </style>

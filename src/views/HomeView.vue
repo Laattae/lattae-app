@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { getAlerts, getMoves, getPortfolio } from '@/api/lattae'
+import { getAlerts, getMoveDetail, getMoves, getPortfolio } from '@/api/lattae'
 import type { AlertItem, MoveView } from '@/types'
 
 interface Notice {
@@ -70,10 +70,10 @@ async function load() {
     const portfolio = await getPortfolio()
     if (!portfolio) return
     const [alerts, moves] = await Promise.all([getAlerts(), getMoves(portfolio)])
-    const byId = new Map(moves.map((move) => [move.id, move]))
     const ordered = [...alerts].sort(
       (a, b) => Date.parse(b.updatedAt ?? b.receivedAt) - Date.parse(a.updatedAt ?? a.receivedAt),
     )
+    const details = await Promise.all(ordered.map((alert) => getMoveDetail(alert.moveId)))
     held.value = portfolio.holdings.length
     keywords.value = portfolio.keywords.length
     sharp.value = moves.length
@@ -81,9 +81,10 @@ async function load() {
     pending.value = alerts.filter((alert) => alert.status === 'unknown').length
     const newest = ordered[0]
     refreshed.value = newest ? clock(newest.updatedAt ?? newest.receivedAt) : ''
-    notices.value = ordered.flatMap((alert) => {
-      const move = byId.get(alert.moveId)
-      return move ? [toNotice(alert, move)] : []
+    notices.value = ordered.flatMap((alert, index) => {
+      const move = details[index]
+      if (!move || move.changePct <= 0) return []
+      return [toNotice(alert, move)]
     })
   } catch {
     failed.value = true
@@ -142,10 +143,10 @@ onMounted(load)
 
       <section class="card" aria-labelledby="notice-title">
         <header class="card-head">
-          <h2 id="notice-title">급변 알림</h2>
+          <h2 id="notice-title">급등 알림</h2>
           <p class="count">{{ notices.length }}건</p>
         </header>
-        <p v-if="!notices.length" class="note">오늘 급변으로 표시할 종목이 없습니다.</p>
+        <p v-if="!notices.length" class="note">오늘 급등으로 표시할 종목이 없습니다.</p>
         <article v-for="(notice, index) in notices" :key="notice.id" class="notice in" :style="{ '--i': index }">
           <div class="who">
             <h3>

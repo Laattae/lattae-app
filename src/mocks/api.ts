@@ -14,6 +14,38 @@ export interface ExploreEntry {
 }
 
 const STORAGE_KEY = 'lattae-portfolio'
+const SESSION_KEY = 'lattae-session'
+const LAST_LOGIN_KEY = 'lattae-last-login'
+
+export type AuthProvider = 'kakao' | 'google' | 'apple'
+
+function providerOf(raw: string | null): AuthProvider | null {
+  if (raw === 'kakao' || raw === 'google' || raw === 'apple') return raw
+  return null
+}
+
+function rememberLogin(provider: AuthProvider) {
+  localStorage.setItem(LAST_LOGIN_KEY, provider)
+}
+
+export async function getSession(): Promise<AuthProvider | null> {
+  const provider = providerOf(localStorage.getItem(SESSION_KEY))
+  if (provider) rememberLogin(provider)
+  return provider
+}
+
+export async function getLastProvider(): Promise<AuthProvider | null> {
+  return providerOf(localStorage.getItem(LAST_LOGIN_KEY))
+}
+
+export async function signIn(provider: AuthProvider): Promise<void> {
+  localStorage.setItem(SESSION_KEY, provider)
+  rememberLogin(provider)
+}
+
+export async function signOut(): Promise<void> {
+  localStorage.removeItem(SESSION_KEY)
+}
 const votes = new Map<string, 'up' | 'down'>()
 const reelLog: ReelEvent[] = []
 
@@ -46,25 +78,35 @@ function weightOf(portfolio: Portfolio, code: string): number | null {
 function toView(moveId: string, portfolio: Portfolio): MoveView | null {
   const move = moves.find((item) => item.id === moveId)
   const stock = move ? stockByCode(move.code) : undefined
-  if (!move || !stock) return null
+  if (move && stock) {
+    return {
+      ...move,
+      name: stock.name,
+      weight: weightOf(portfolio, move.code),
+      vote: votes.get(move.id) ?? null,
+      related: move.relatedCodes.flatMap((code) => {
+        const relatedStock = stockByCode(code)
+        const quote = quoteByCode(code)
+        if (!relatedStock || !quote) return []
+        return [
+          {
+            code,
+            name: relatedStock.name,
+            changePct: quote.changePct,
+            moveId: moveByCode(code)?.id ?? null,
+          },
+        ]
+      }),
+    }
+  }
+  const extra = extraExplore.find((item) => item.move.id === moveId)
+  if (!extra) return null
   return {
-    ...move,
-    name: stock.name,
-    weight: weightOf(portfolio, move.code),
-    vote: votes.get(move.id) ?? null,
-    related: move.relatedCodes.flatMap((code) => {
-      const relatedStock = stockByCode(code)
-      const quote = quoteByCode(code)
-      if (!relatedStock || !quote) return []
-      return [
-        {
-          code,
-          name: relatedStock.name,
-          changePct: quote.changePct,
-          moveId: moveByCode(code)?.id ?? null,
-        },
-      ]
-    }),
+    ...extra.move,
+    name: extra.name,
+    weight: weightOf(portfolio, extra.move.code),
+    vote: votes.get(extra.move.id) ?? null,
+    related: [],
   }
 }
 
