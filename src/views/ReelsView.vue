@@ -2,6 +2,8 @@
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { listExplore, postReelEvent } from '@/api/lattae'
+import BrewMark from '@/components/BrewMark.vue'
+import BrewStatus from '@/components/BrewStatus.vue'
 import ChangePct from '@/components/ChangePct.vue'
 import Icon from '@/components/Icon.vue'
 import Sparkline from '@/components/Sparkline.vue'
@@ -17,6 +19,7 @@ interface FeedItem {
 const route = useRoute()
 const router = useRouter()
 const deck = ref<HTMLElement | null>(null)
+const ready = ref(false)
 const feed = ref<FeedItem[]>([])
 const loop = ref<FeedItem[]>([])
 const pageOf = ref<Record<string, number>>({})
@@ -140,7 +143,12 @@ async function append() {
   appending = false
 }
 
+function paceOf(type: ReelCard['type']) {
+  return type === 'move' ? 'espresso' : 'roast'
+}
+
 async function load() {
+  ready.value = false
   leave(activeId.value)
   activeId.value = ''
   activeKey.value = ''
@@ -159,6 +167,7 @@ async function load() {
   const start = items.findIndex((item) => item.reel.id === reelId && item.kind === kind)
   loop.value = start > 0 ? [...items.slice(start), ...items.slice(0, start)] : items
   feed.value = stamp(loop.value)
+  ready.value = true
   await nextTick()
   deck.value?.scrollTo({ top: 0 })
   deck.value?.querySelectorAll('.carousel').forEach((node) => {
@@ -255,7 +264,14 @@ onBeforeUnmount(() => {
 <template>
   <div class="reel">
     <h1 class="sr-only">오늘의 변동</h1>
-    <div ref="deck" class="deck" tabindex="0" @keydown="onKey">
+    <div v-if="!feed.length" class="wait">
+      <BrewStatus v-if="!ready" kind="roast" label="불러오는 중" />
+      <template v-else>
+        <BrewMark kind="roast" :size="96" />
+        <p>표시할 릴스가 없습니다.</p>
+      </template>
+    </div>
+    <div v-else ref="deck" class="deck" tabindex="0" @keydown="onKey">
       <article
         v-for="item in feed"
         :key="item.key"
@@ -276,7 +292,8 @@ onBeforeUnmount(() => {
             aria-label="게시글 내용"
             @scroll="onPageScroll($event, item)"
           >
-            <section v-for="card in item.reel.cards" :key="card.id" class="page">
+            <section v-for="card in item.reel.cards" :key="card.id" class="page" :data-type="card.type">
+              <BrewMark :kind="paceOf(card.type)" :size="72" />
               <p class="kicker">{{ card.kicker }}</p>
               <h2>{{ card.title }}</h2>
               <ol v-if="card.type === 'filing'">
@@ -344,6 +361,7 @@ onBeforeUnmount(() => {
         </template>
 
         <template v-else-if="lead(item.reel)">
+          <BrewMark class="wash" kind="roast" tone="dark" motion :size="240" />
           <div class="frame">
             <div class="overlay">
               <p class="kicker">{{ lead(item.reel)?.kicker }}</p>
@@ -386,9 +404,19 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .reel,
-.deck {
+.deck,
+.wait {
   height: 100%;
 }
+.wait {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+.wait p { margin: 0; color: var(--muted); font-size: 13px; }
 .reel { overflow: hidden; }
 .deck {
   overflow-y: auto;
@@ -473,6 +501,10 @@ onBeforeUnmount(() => {
   background: var(--canvas);
 }
 .kicker, h2, p, small, strong { margin: 0; }
+.page > p,
+.page > ol,
+.page > .related,
+.page > .article { width: 100%; }
 .kicker { color: var(--muted); font-weight: 700; }
 .page h2 { font-size: 1.45rem; letter-spacing: -0.03em; line-height: 1.3; }
 .page ol {
@@ -485,6 +517,13 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 .related { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.page[data-type='related'] .related {
+  align-items: flex-start;
+  padding-left: 14px;
+  border-left: 2px solid var(--accent);
+  text-align: left;
+}
+.page[data-type='related'] .related li { align-items: flex-start; }
 .related li, .article { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
 .article a { text-decoration: underline; text-underline-offset: 2px; }
 small { color: var(--muted); }
@@ -551,6 +590,16 @@ small { color: var(--muted); }
   100% { transform: scale(1); }
 }
 .item[data-kind='reel'] { color: #f7ebda; background: #4a2c1d; }
+.wash {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  z-index: 0;
+  opacity: 0.38;
+  pointer-events: none;
+  translate: -50% 0;
+}
+.frame { position: relative; z-index: 1; }
 .frame { height: 100%; }
 .overlay {
   display: flex;

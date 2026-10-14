@@ -1,57 +1,93 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { getMoves, getPortfolio, getWatchGrid } from '@/api/lattae'
-import Icon from '@/components/Icon.vue'
-import MoveCard from '@/components/MoveCard.vue'
-import ChangePct from '@/components/ChangePct.vue'
-import type { MoveView, Tile } from '@/types'
+import { onMounted, ref } from 'vue'
+import { getAlerts, getMoveDetail, getMoves, getPortfolio } from '@/api/lattae'
+import BrewMark from '@/components/BrewMark.vue'
+import BrewStatus from '@/components/BrewStatus.vue'
+import type { AlertItem, MoveView } from '@/types'
 
-interface Story {
-  code: string
+interface Notice {
+  id: string
   name: string
-  changePct: number
-  moveId: string | null
-  caption: string
+  moveId: string
+  reelId: string
+  chip: string
+  tone: 'up' | 'down' | 'pending' | 'confirmed'
+  time: string
+  earlier: string | null
+  title: string
+  body: string | null
+  sources: number
 }
 
-const moves = ref<MoveView[]>([])
-const tiles = ref<Tile[]>([])
+const held = ref(0)
+const keywords = ref(0)
+const sharp = ref(0)
+const confirmed = ref(0)
+const pending = ref(0)
+const refreshed = ref('')
+const notices = ref<Notice[]>([])
 const ready = ref(false)
 const failed = ref(false)
 
-const stories = computed<Story[]>(() => {
-  const sharp: Story[] = moves.value.map((move) => ({
-    code: move.code,
-    name: move.name,
-    changePct: move.changePct,
-    moveId: move.id,
-    caption: move.weight !== null ? `비중 ${move.weight}%` : '관심',
-  }))
-  const seen = new Set(sharp.map((story) => story.code))
-  const quiet: Story[] = tiles.value
-    .filter((tile) => !seen.has(tile.code))
-    .map((tile) => ({
-      code: tile.code,
-      name: tile.name,
-      changePct: tile.changePct,
-      moveId: null,
-      caption: tile.interest ? '관심' : `비중 ${tile.weight}%`,
-    }))
-  return [...sharp, ...quiet]
-})
+function clock(iso: string) {
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+    timeZone: 'Asia/Seoul',
+  }).format(new Date(iso))
+}
 
-function mark(name: string) {
-  return name.slice(0, 2)
+function chipOf(move: MoveView, alert: AlertItem): Pick<Notice, 'chip' | 'tone'> {
+  if (alert.status === 'unknown' || move.causeType === 'unknown') {
+    return { chip: '확인 중', tone: 'pending' }
+  }
+  if (move.causeType === 'theme' || move.causeType === 'market') {
+    if (move.changePct > 0) return { chip: '상승', tone: 'up' }
+    if (move.changePct < 0) return { chip: '하락', tone: 'down' }
+    return { chip: '보합', tone: 'confirmed' }
+  }
+  return { chip: '원인 확인', tone: 'confirmed' }
+}
+
+function toNotice(alert: AlertItem, move: MoveView): Notice {
+  const summary = move.summary
+  return {
+    id: alert.id,
+    name: alert.name,
+    moveId: alert.moveId,
+    reelId: move.reelId,
+    ...chipOf(move, alert),
+    time: clock(alert.updatedAt ?? alert.receivedAt),
+    earlier: alert.earlierStatus === 'unknown' ? clock(alert.receivedAt) : null,
+    title: alert.text,
+    body: summary && summary !== alert.text ? summary : null,
+    sources: move.sources.length,
+  }
 }
 
 async function load() {
   failed.value = false
-  ready.value = false
   try {
     const portfolio = await getPortfolio()
     if (!portfolio) return
-    moves.value = await getMoves(portfolio)
-    tiles.value = await getWatchGrid(portfolio)
+    const [alerts, moves] = await Promise.all([getAlerts(), getMoves(portfolio)])
+    const ordered = [...alerts].sort(
+      (a, b) => Date.parse(b.updatedAt ?? b.receivedAt) - Date.parse(a.updatedAt ?? a.receivedAt),
+    )
+    const details = await Promise.all(ordered.map((alert) => getMoveDetail(alert.moveId)))
+    held.value = portfolio.holdings.length
+    keywords.value = portfolio.keywords.length
+    sharp.value = moves.length
+    confirmed.value = alerts.filter((alert) => alert.status === 'confirmed').length
+    pending.value = alerts.filter((alert) => alert.status === 'unknown').length
+    const newest = ordered[0]
+    refreshed.value = newest ? clock(newest.updatedAt ?? newest.receivedAt) : ''
+    notices.value = ordered.flatMap((alert, index) => {
+      const move = details[index]
+      if (!move || move.changePct <= 0) return []
+      return [toNotice(alert, move)]
+    })
   } catch {
     failed.value = true
   } finally {
@@ -63,55 +99,86 @@ onMounted(load)
 </script>
 
 <template>
-  <div class="view">
+  <div class="view home">
     <header class="bar home-bar">
       <div>
         <h1 class="mark">라떼</h1>
         <p class="tagline">Your portfolio, explained.</p>
       </div>
-      <span class="grow"></span>
-      <RouterLink class="icon-btn" to="/alerts" aria-label="알림">
-        <Icon name="bell" />
-      </RouterLink>
     </header>
 
-    <p v-if="!ready" class="note pad" role="status">불러오는 중</p>
+    <BrewStatus v-if="!ready" kind="espresso" />
     <p v-else-if="failed" class="note pad" role="alert">
       홈을 불러오지 못했습니다.
       <button type="button" class="text-btn" @click="load">다시 시도</button>
     </p>
-    <template v-else>
-      <ul v-if="stories.length" class="stories" aria-label="보유와 관심">
-        <li v-for="(story, index) in stories" :key="story.code" class="bloom" :style="{ '--i': index }">
-          <RouterLink v-if="story.moveId" class="story" :to="`/moves/${story.moveId}`">
-            <span class="ring moved" aria-hidden="true">{{ mark(story.name) }}</span>
-            <span class="name">{{ story.name }}</span>
-            <ChangePct :value="story.changePct" />
-            <span class="sr-only">{{ story.caption }}. 급변</span>
-          </RouterLink>
-          <article v-else class="story">
-            <span class="ring" aria-hidden="true">{{ mark(story.name) }}</span>
-            <span class="name">{{ story.name }}</span>
-            <ChangePct :value="story.changePct" />
-            <span class="sr-only">{{ story.caption }}. 특이 변동 없음</span>
-          </article>
-        </li>
-      </ul>
-      <p v-else class="note pad">그 밖에 표시할 종목이 없습니다.</p>
-      <p class="note asof">
-        가격은 {{ moves[0]?.asOfLabel ?? '전일 종가 기준' }}입니다. 실시간 시세가 아닙니다.
-      </p>
-      <div class="feed">
-        <p v-if="!moves.length" class="note empty">오늘 급변으로 표시할 종목이 없습니다.</p>
-        <MoveCard
-          v-for="(move, index) in moves"
-          :key="move.id"
-          class="in"
-          :style="{ '--i': index }"
-          :move="move"
-        />
-      </div>
-    </template>
+    <div v-else class="board">
+      <section class="card" aria-labelledby="today-title">
+        <header class="card-head">
+          <h2 id="today-title">오늘 현황</h2>
+          <p v-if="refreshed" class="fresh">{{ refreshed }} 갱신</p>
+        </header>
+        <dl class="stats">
+          <div>
+            <dt>종목 보유</dt>
+            <dd class="num">{{ held }}</dd>
+          </div>
+          <div>
+            <dt>급변</dt>
+            <dd class="num up">{{ sharp }}</dd>
+          </div>
+          <div>
+            <dt>원인 확인</dt>
+            <dd class="num down">{{ confirmed }}</dd>
+          </div>
+          <div>
+            <dt>확인 중</dt>
+            <dd class="num pending">{{ pending }}</dd>
+          </div>
+        </dl>
+        <p class="watch">
+          감시 종목 : <strong>{{ held }} 종목</strong>
+          <span aria-hidden="true"> · </span>
+          관심 키워드 : <strong>{{ keywords }} 개</strong>
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="notice-title">
+        <header class="card-head">
+          <h2 id="notice-title" class="with-mark">
+            <BrewMark kind="espresso" :size="32" />
+            급등 알림
+          </h2>
+          <p class="count">{{ notices.length }}건</p>
+        </header>
+        <div v-if="!notices.length" class="empty">
+          <BrewMark kind="espresso" :size="80" />
+          <p class="note">오늘 급등으로 표시할 종목이 없습니다.</p>
+        </div>
+        <article v-for="(notice, index) in notices" :key="notice.id" class="notice in" :style="{ '--i': index }">
+          <div class="who">
+            <h3>
+              <RouterLink :to="`/moves/${notice.moveId}`">{{ notice.name }}</RouterLink>
+            </h3>
+            <span class="chip" :data-tone="notice.tone">{{ notice.chip }}</span>
+            <span class="time">
+              <template v-if="notice.earlier">{{ notice.earlier }} 원인 미확인 · </template>
+              <time>{{ notice.time }}</time>
+            </span>
+          </div>
+          <p class="title">
+            <RouterLink :to="`/moves/${notice.moveId}`">{{ notice.title }}</RouterLink>
+          </p>
+          <p v-if="notice.body" class="body">{{ notice.body }}</p>
+          <div class="foot">
+            <RouterLink class="meta" :to="`/moves/${notice.moveId}`">
+              {{ notice.sources ? `근거 ${notice.sources}건` : '근거 없음' }}
+            </RouterLink>
+            <RouterLink class="pill" :to="`/reels/${notice.reelId}?kind=reel`">숏폼 보기</RouterLink>
+          </div>
+        </article>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -120,71 +187,207 @@ onMounted(load)
   border-bottom: 1px solid var(--line);
 }
 
-.stories {
+.pad { padding: 0 16px; }
+
+.board {
   display: flex;
-  gap: 4px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 12px 8px;
+}
+
+.card {
+  padding: 16px 16px 8px;
+  border-radius: 18px;
+  background: var(--bg-raised);
+  box-shadow: 0 8px 24px rgb(74 44 29 / 8%);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-head h2,
+.fresh,
+.count,
+.watch,
+.title,
+.body,
+.note {
   margin: 0;
-  padding: 12px 8px;
-  overflow-x: auto;
-  border-bottom: 1px solid var(--line);
-  list-style: none;
-  scrollbar-width: none;
 }
 
-.stories::-webkit-scrollbar {
-  display: none;
+.card-head h2 {
+  font-size: 16px;
 }
 
-.story {
+.with-mark {
   display: flex;
-  width: 76px;
+  align-items: center;
+  gap: 6px;
+}
+
+.empty {
+  display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  color: inherit;
-  font-size: 12px;
+  gap: 8px;
+  padding: 12px 0 16px;
   text-align: center;
-  text-decoration: none;
 }
 
-.ring {
+.fresh,
+.watch,
+.time,
+.meta,
+.body {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stats {
   display: grid;
-  width: 62px;
-  height: 62px;
-  place-items: center;
-  border: 2px solid var(--line);
-  border-radius: 50%;
-  background: var(--bg-raised);
-  font-size: 14px;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 16px 0 12px;
+  text-align: center;
+}
+
+.stats div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+
+.stats dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 750;
+  line-height: 1.1;
+}
+
+.up { color: var(--up); }
+.down { color: var(--down); }
+.pending { color: #a86b2a; }
+
+.watch {
+  margin-bottom: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.watch strong {
+  color: var(--text);
   font-weight: 700;
 }
 
-.ring.moved {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 2px var(--bg);
+.count {
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(158 43 43 / 10%);
+  color: var(--up);
+  font-size: 12px;
+  font-weight: 750;
+  text-align: center;
 }
 
-.name {
-  max-width: 72px;
-  overflow: hidden;
-  font-weight: 650;
-  text-overflow: ellipsis;
+.notice {
+  padding: 14px 0;
+}
+
+.notice + .notice {
+  border-top: 1px solid var(--line);
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.who h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.who a,
+.title a,
+.meta {
+  color: inherit;
+  text-decoration: none;
+}
+
+.time {
+  margin-left: auto;
   white-space: nowrap;
 }
 
-.asof,
-.empty,
-.pad {
-  padding-right: 16px;
-  padding-left: 16px;
+.chip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 750;
 }
 
-.asof {
-  margin: 10px 0;
+.chip[data-tone='up'] {
+  background: rgb(158 43 43 / 12%);
+  color: var(--up);
 }
 
-.feed {
+.chip[data-tone='down'] {
+  background: rgb(30 78 140 / 12%);
+  color: var(--down);
+}
+
+.chip[data-tone='confirmed'] {
+  background: rgb(30 78 140 / 12%);
+  color: var(--down);
+}
+
+.chip[data-tone='pending'] {
+  background: rgb(168 107 42 / 14%);
+  color: #a86b2a;
+}
+
+.title {
+  margin-top: 8px;
+  font-size: 16px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.body {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.foot {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pill {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #4a2c1d;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 32px;
+  text-decoration: none;
 }
 </style>

@@ -10,11 +10,15 @@ const motion = ref('settle')
 
 const tabs = ['home', 'search', 'profile']
 const rank: Record<string, number> = {
+  login: 0,
   onboarding: 0,
   home: 1,
   search: 1,
   profile: 1,
-  alerts: 2,
+  holdings: 2,
+  account: 2,
+  privacy: 2,
+  terms: 2,
   move: 3,
   reels: 4,
 }

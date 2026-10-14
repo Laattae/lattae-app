@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+<stop offset="0" stop-color="#F7EBDA"/><stop offset="1" stop-color="#EBD5B8"/></linearGradient></defs>
+
+<g transform="translate(300 430) rotate(-28)">
+<ellipse rx="112" ry="158" fill="#C99766"/>
+<path d="M0 -135.88 C 47.04 -55.3 -47.04 55.3 0 135.88" fill="none"
+ stroke="#00000040" stroke-width="17.9" stroke-linecap="round"/></g>
+<g transform="translate(512 470) rotate(-28)">
+<ellipse rx="112" ry="158" fill="#8A5530"/>
+<path d="M0 -135.88 C 47.04 -55.3 -47.04 55.3 0 135.88" fill="none"
+ stroke="#00000040" stroke-width="17.9" stroke-linecap="round"/></g>
+<g transform="translate(724 510) rotate(-28)">
+<ellipse rx="112" ry="158" fill="#3A2114"/>
+<path d="M0 -135.88 C 47.04 -55.3 -47.04 55.3 0 135.88" fill="none"
+ stroke="#ffffff30" stroke-width="17.9" stroke-linecap="round"/></g>
+<g fill="none" stroke="#E0533D" stroke-width="36" stroke-linecap="round">
+  <path d="M300 740 q-34 30 0 60 q34 30 0 60"/>
+  <path d="M512 740 q-34 30 0 60 q34 30 0 60"/>
+  <path d="M724 740 q-34 30 0 60 q34 30 0 60"/>
+</g>
+</svg>

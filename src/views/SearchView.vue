@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { listExplorePage, type ExplorePage } from '@/api/lattae'
+import BrewMark from '@/components/BrewMark.vue'
+import BrewStatus from '@/components/BrewStatus.vue'
 import ChangePct from '@/components/ChangePct.vue'
 import Icon from '@/components/Icon.vue'
 import { UNKNOWN_LINE } from '@/lib/format'
@@ -129,10 +131,13 @@ onBeforeUnmount(() => observer?.disconnect())
         <input v-model="query" type="search" placeholder="종목, 별칭, 코드" autocomplete="off" />
       </label>
     </header>
-    <p v-if="!ready" class="note pad" role="status">불러오는 중</p>
-    <p v-else-if="!sheets.length" class="note pad" role="status">
-      {{ query.trim() ? '해당하는 게시물이나 릴스가 없습니다.' : '표시할 게시물이나 릴스가 없습니다.' }}
-    </p>
+    <BrewStatus v-if="!ready" kind="roast" />
+    <div v-else-if="!sheets.length" class="empty" role="status">
+      <BrewMark kind="roast" :size="96" />
+      <p class="note">
+        {{ query.trim() ? '해당하는 게시물이나 릴스가 없습니다.' : '표시할 게시물이나 릴스가 없습니다.' }}
+      </p>
+    </div>
     <template v-else>
       <section v-for="sheet in sheets" :key="sheet.key" class="sheet" :aria-label="sheet.label">
         <div class="grid">
@@ -161,6 +166,14 @@ onBeforeUnmount(() => observer?.disconnect())
 
 <style scoped>
 .pad { padding: 0 16px; }
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 24px;
+  text-align: center;
+}
 .finder {
   display: flex;
   flex: 1;

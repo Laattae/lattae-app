@@ -2,8 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getMoveDetail, postFeedback } from '@/api/lattae'
+import BrewMark from '@/components/BrewMark.vue'
+import BrewStatus from '@/components/BrewStatus.vue'
 import CauseBadge from '@/components/CauseBadge.vue'
 import ChangePct from '@/components/ChangePct.vue'
+import ConnectionMap from '@/components/ConnectionMap.vue'
 import Disclaimer from '@/components/Disclaimer.vue'
 import Icon from '@/components/Icon.vue'
 import { UNKNOWN_LINE, formatPrice, formatWhen } from '@/lib/format'
@@ -48,13 +51,14 @@ watch(moveId, load, { immediate: true })
       <h1>변동</h1>
     </header>
 
-    <p v-if="!ready" class="note pad" role="status">불러오는 중</p>
+    <BrewStatus v-if="!ready" kind="espresso" />
     <p v-else-if="failed" class="note pad" role="alert">
       변동을 불러오지 못했습니다.
       <button type="button" class="text-btn" @click="load">다시 시도</button>
     </p>
     <p v-else-if="!move" class="note pad">이 변동을 찾지 못했습니다.</p>
     <article v-else class="stack cascade">
+      <BrewMark class="shot" kind="espresso" :size="88" />
       <div class="top">
         <h2>{{ move.name }}</h2>
         <CauseBadge :cause="move.causeType" :scope="move.scope" />
@@ -83,16 +87,12 @@ watch(moveId, load, { immediate: true })
         </ul>
       </section>
 
-      <section v-if="move.related.length">
-        <h3>같이 움직인 종목</h3>
-        <p v-if="move.scope === 'market'" class="note">방향이 같다는 뜻입니다. 원인이 같다는 뜻은 아닙니다.</p>
-        <div class="chips">
-          <template v-for="item in move.related" :key="item.code">
-            <RouterLink v-if="item.moveId" :to="`/moves/${item.moveId}`">{{ item.name }}</RouterLink>
-            <span v-else>{{ item.name }}</span>
-          </template>
-        </div>
-      </section>
+      <ConnectionMap
+        v-if="move.related.length"
+        :hub="move.name"
+        note="방향이 같다는 뜻입니다. 원인이 같다는 뜻은 아닙니다."
+        :items="move.related.map((item) => ({ key: item.code, label: item.name, to: item.moveId ? `/moves/${item.moveId}` : null }))"
+      />
 
       <section v-if="!unknown">
         <h3>원인이 맞았나요?</h3>
@@ -115,6 +115,7 @@ watch(moveId, load, { immediate: true })
 
 <style scoped>
 .pad { padding: 0 16px; }
+.shot { margin-inline: auto; }
 h2, h3, p { margin: 0; }
 h2 { font-size: 1.4rem; }
 .top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
