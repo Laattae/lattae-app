@@ -11,6 +11,10 @@ export default defineConfig({
     vue(),
     vueDevTools(),
     VitePWA({
+      // FCM 푸시를 같은 서비스 워커에서 받기 위해 직접 작성한 src/sw.ts를 쓴다.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'lattae-icon-192.png', 'lattae-icon-512.png', 'lattae-icon-1024.png'],
       manifest: {
@@ -45,7 +49,7 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webmanifest}'],
         globIgnores: [
           '**/roast-loader-transparent.png',
@@ -53,7 +57,6 @@ export default defineConfig({
           '**/roast-loader-transparent-notext.png',
           '**/roast-loader-transparent-ondark-notext.png',
         ],
-        navigateFallback: 'index.html',
       },
     }),
   ],

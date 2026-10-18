@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getPortfolio, getSession, savePortfolio, signOut, type AuthProvider } from '@/api/lattae'
+import { getAlertCodes, getPortfolio, getSession, savePortfolio, signOut, type AuthProvider } from '@/api/lattae'
+import { disablePush, enablePush } from '@/lib/push'
 import BrewStatus from '@/components/BrewStatus.vue'
 import Icon from '@/components/Icon.vue'
 
@@ -57,6 +58,7 @@ async function toggleNotifications() {
   note.value = ''
   try {
     if (notificationsEnabled.value) {
+      await disablePush().catch((error) => console.warn('[push] disable failed', error))
       await persist(false)
       note.value = '알림을 받지 않습니다. 알림함은 그대로 볼 수 있습니다.'
       return
@@ -68,11 +70,16 @@ async function toggleNotifications() {
     }
     const result = await Notification.requestPermission()
     const enabled = result === 'granted'
+    if (enabled) {
+      const portfolio = await getPortfolio()
+      await enablePush(portfolio ? await getAlertCodes(portfolio) : [])
+    }
     await persist(enabled)
     note.value = enabled
       ? '알림을 받습니다. 급변 설명만 보냅니다.'
       : '알림을 받지 않습니다. 알림함은 그대로 볼 수 있습니다.'
-  } catch {
+  } catch (error) {
+    console.warn('[push] toggle failed', error)
     note.value = '알림 설정을 저장하지 못했습니다.'
   } finally {
     busy.value = false
