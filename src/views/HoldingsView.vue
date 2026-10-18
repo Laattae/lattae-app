@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getPortfolio, savePortfolio, searchCatalog, searchStocks } from '@/api/lattae'
+import { getAlertCodes, getPortfolio, savePortfolio, searchCatalog, searchStocks } from '@/api/lattae'
+import { resumePush } from '@/lib/push'
 import BrewStatus from '@/components/BrewStatus.vue'
 import ChangePct from '@/components/ChangePct.vue'
 import ConnectionMap from '@/components/ConnectionMap.vue'
@@ -92,12 +93,15 @@ async function save() {
     error.value = '비중 합이 100%를 넘습니다. 합을 100 이하로 맞춰 주세요.'
     return
   }
-  await savePortfolio({
+  const portfolio = {
     holdings: holdings.value.map((item) => ({ code: item.code, weight: Number(item.weight) })),
     keywords: keywords.value,
     notificationsEnabled: notificationsEnabled.value,
-  })
+  }
+  await savePortfolio(portfolio)
   saved.value = true
+  // 알림 종목 구독을 새 포트폴리오에 맞춘다. 실패해도 저장은 끝난 상태다.
+  if (portfolio.notificationsEnabled) void resumePush(await getAlertCodes(portfolio))
 }
 
 onMounted(load)

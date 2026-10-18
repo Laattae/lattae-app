@@ -160,6 +160,11 @@ export async function savePortfolio(portfolio: Portfolio): Promise<void> {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolio))
 }
 
+/** 급등락 알림을 받을 종목. 보유 종목과 관심 키워드 종목이다. */
+export async function getAlertCodes(portfolio: Portfolio): Promise<string[]> {
+  return [...relevantCodes(portfolio)].sort()
+}
+
 export const demoPortfolio: Portfolio = {
   holdings: [
     { code: '005930', weight: 25 },

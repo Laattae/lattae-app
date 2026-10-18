@@ -1,0 +1,11 @@
+// 서비스 워커(src/sw.ts) 전용. DOM 대신 WebWorker 타입으로 검사한다.
+{
+  "extends": "@vue/tsconfig/tsconfig.json",
+  "include": ["src/sw.ts", "src/lib/firebase.ts"],
+  "compilerOptions": {
+    "lib": ["ES2022", "WebWorker"],
+    "types": ["vite/client"],
+    "noUncheckedIndexedAccess": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.sw.tsbuildinfo"
+  }
+}
